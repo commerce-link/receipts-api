@@ -8,6 +8,7 @@ import pl.commercelink.provider.api.WebhookOutcome;
 import pl.commercelink.provider.api.WebhookStatusResponse;
 import pl.commercelink.receipts.api.FiscalData;
 import pl.commercelink.receipts.api.Receipt;
+import pl.commercelink.receipts.api.ReceiptFailure;
 import pl.commercelink.receipts.api.ReceiptProvider;
 import pl.commercelink.receipts.api.ReceiptProviderDescriptor;
 
@@ -27,7 +28,12 @@ class InMemoryReceiptWebhookContractTest extends ReceiptWebhookContractTest {
     private static final String SIGNATURE_HEADER = "X-Signature";
     private static final Map<String, String> CONFIG = Map.of("webhookSecret", "s3cret");
 
-    /** Descriptor whose webhook body is "key|providerId|register|number|fiscalisedAt|url", signed with HMAC-SHA256. */
+    /**
+     * Descriptor whose webhook body is signed with HMAC-SHA256 and starts with a state field:
+     * {@code FISCALISED|key|providerId|register|number|fiscalisedAt|url},
+     * {@code FAILED|key|providerId|code|message}, or the literal {@code IGNORE} for an event about
+     * something that is not one of this store's receipts.
+     */
     static class Descriptor implements ReceiptProviderDescriptor {
 
         @Override
@@ -67,9 +73,18 @@ class InMemoryReceiptWebhookContractTest extends ReceiptWebhookContractTest {
                     signature.getBytes(StandardCharsets.UTF_8))) {
                 return WebhookOutcome.of(null, new WebhookStatusResponse(REJECTED));
             }
+            if ("IGNORE".equals(payload)) {
+                // An authentic call about a document that is not one of this store's receipts.
+                return WebhookOutcome.empty();
+            }
             String[] parts = payload.split("\\|", -1);
-            Receipt receipt = Receipt.fiscalised(parts[0], parts[1],
-                    new FiscalData(parts[2], parts[3], Instant.parse(parts[4])), parts[5]);
+            Receipt receipt = switch (parts[0]) {
+                case "FISCALISED" -> Receipt.fiscalised(parts[1], parts[2],
+                        new FiscalData(parts[3], parts[4], Instant.parse(parts[5])), parts[6]);
+                case "FAILED" -> Receipt.failed(parts[1], parts[2],
+                        new ReceiptFailure(parts[3].isEmpty() ? null : parts[3], parts[4]));
+                default -> throw new IllegalArgumentException("Unknown webhook state: " + parts[0]);
+            };
             return WebhookOutcome.of(receipt, new WebhookStatusResponse("OK"));
         }
     }
@@ -86,9 +101,20 @@ class InMemoryReceiptWebhookContractTest extends ReceiptWebhookContractTest {
 
     @Override
     protected SignedWebhook validWebhook(Receipt receipt) {
-        FiscalData fiscal = receipt.fiscal();
-        String payload = String.join("|", receipt.receiptKey(), receipt.providerReceiptId(),
-                fiscal.cashRegisterUniqueNumber(), fiscal.receiptNumber(), fiscal.fiscalisedAt().toString(), receipt.documentUrl());
+        String payload = switch (receipt.state()) {
+            case FISCALISED -> {
+                FiscalData fiscal = receipt.fiscal();
+                yield String.join("|", "FISCALISED", receipt.receiptKey(), receipt.providerReceiptId(),
+                        fiscal.cashRegisterUniqueNumber(), fiscal.receiptNumber(), fiscal.fiscalisedAt().toString(),
+                        receipt.documentUrl());
+            }
+            case FAILED -> {
+                ReceiptFailure failure = receipt.failure();
+                yield String.join("|", "FAILED", receipt.receiptKey(), receipt.providerReceiptId(),
+                        failure.code() == null ? "" : failure.code(), failure.message());
+            }
+            case PENDING -> throw new IllegalArgumentException("This fixture has no webhook payload for PENDING");
+        };
         return new SignedWebhook(payload, Map.of(SIGNATURE_HEADER, hmac(payload, CONFIG.get("webhookSecret"))));
     }
 
@@ -100,6 +126,12 @@ class InMemoryReceiptWebhookContractTest extends ReceiptWebhookContractTest {
     @Override
     protected Optional<SignedWebhook> tampered(SignedWebhook valid) {
         return Optional.of(new SignedWebhook(valid.payload().replace("000001", "000002"), valid.headers()));
+    }
+
+    @Override
+    protected Optional<SignedWebhook> irrelevantWebhook() {
+        String payload = "IGNORE";
+        return Optional.of(new SignedWebhook(payload, Map.of(SIGNATURE_HEADER, hmac(payload, CONFIG.get("webhookSecret")))));
     }
 
     private static String hmac(String payload, String secret) {

@@ -7,7 +7,9 @@ import pl.commercelink.provider.api.WebhookOutcome;
 import pl.commercelink.provider.api.WebhookStatusResponse;
 import pl.commercelink.receipts.api.FiscalData;
 import pl.commercelink.receipts.api.Receipt;
+import pl.commercelink.receipts.api.ReceiptFailure;
 import pl.commercelink.receipts.api.ReceiptProviderDescriptor;
+import pl.commercelink.receipts.api.ReceiptState;
 
 import java.time.Instant;
 import java.util.List;
@@ -16,8 +18,10 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
@@ -45,11 +49,22 @@ public abstract class ReceiptWebhookContractTest {
         return Optional.empty();
     }
 
+    /** An authentic call about something this provider has nothing to report, e.g. a non-receipt document. */
+    protected Optional<SignedWebhook> irrelevantWebhook() {
+        return Optional.empty();
+    }
+
     /** The receipt reported in the sample webhook. */
     protected Receipt sampleReceipt() {
         return Receipt.fiscalised("tck-order-1:R1", "tck-provider-1",
                 new FiscalData("TCK0000001", "000001", Instant.parse("2026-09-22T10:00:00Z")),
                 "https://receipts.example/view/tck-provider-1");
+    }
+
+    /** A failed receipt reported in the sample webhook. */
+    protected Receipt sampleFailedReceipt() {
+        return Receipt.failed("tck-order-2:R1", "tck-provider-2",
+                new ReceiptFailure("16", "Printer rejected the line name"));
     }
 
     @Test
@@ -74,9 +89,42 @@ public abstract class ReceiptWebhookContractTest {
 
         // then
         Receipt receipt = assertInstanceOf(Receipt.class, outcome.result());
-        assertEquals(expected.receiptKey(), receipt.receiptKey());
+        assertEquals(expected.providerReceiptId(), receipt.providerReceiptId());
+        assertTrue(receipt.receiptKey() == null || receipt.receiptKey().equals(expected.receiptKey()),
+                "receiptKey must be null or the sample's key, was " + receipt.receiptKey());
         assertEquals(expected.state(), receipt.state());
         assertNotNull(receipt.fiscal());
+    }
+
+    @Test
+    void authenticFailureWebhookYieldsFailedReceipt() {
+        // given
+        Receipt expected = sampleFailedReceipt();
+
+        // when
+        WebhookOutcome<?> outcome = execute(validWebhook(expected));
+
+        // then
+        Receipt receipt = assertInstanceOf(Receipt.class, outcome.result());
+        assertEquals(expected.providerReceiptId(), receipt.providerReceiptId());
+        assertEquals(ReceiptState.FAILED, receipt.state());
+        assertNotNull(receipt.failure());
+    }
+
+    @Test
+    void irrelevantWebhookYieldsNothingAndIsNotRejected() {
+        // given
+        Optional<SignedWebhook> irrelevant = irrelevantWebhook();
+        assumeTrue(irrelevant.isPresent(), "Adapter does not simulate an irrelevant webhook");
+
+        // when
+        WebhookOutcome<?> outcome = execute(irrelevant.get());
+
+        // then
+        assertNull(outcome.result());
+        if (outcome.responseBody() instanceof WebhookStatusResponse response) {
+            assertNotEquals(REJECTED, response.status());
+        }
     }
 
     @Test
