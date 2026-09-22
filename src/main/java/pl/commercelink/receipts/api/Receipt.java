@@ -18,8 +18,8 @@ public final class Receipt {
 
     private Receipt(String receiptKey, String providerReceiptId, ReceiptState state,
                     FiscalData fiscal, String documentUrl, ReceiptFailure failure) {
-        if (receiptKey == null || receiptKey.isBlank()) {
-            throw new IllegalArgumentException("receiptKey is required");
+        if (receiptKey != null && receiptKey.isBlank()) {
+            throw new IllegalArgumentException("receiptKey must not be blank");
         }
         if (providerReceiptId == null || providerReceiptId.isBlank()) {
             throw new IllegalArgumentException("providerReceiptId is required");
@@ -50,6 +50,12 @@ public final class Receipt {
         return new Receipt(receiptKey, providerReceiptId, ReceiptState.FAILED, null, null, failure);
     }
 
+    /**
+     * The idempotency key this receipt was issued under. Always non-null for {@link ReceiptProvider#issue}
+     * and {@link ReceiptProvider#find} results. May be null for {@link ReceiptProvider#fetch} and for a
+     * webhook result when the provider does not echo it back; consumers then correlate by
+     * {@link #providerReceiptId()} instead.
+     */
     public String receiptKey() {
         return receiptKey;
     }
@@ -86,7 +92,7 @@ public final class Receipt {
         if (!(o instanceof Receipt other)) {
             return false;
         }
-        return receiptKey.equals(other.receiptKey) && providerReceiptId.equals(other.providerReceiptId)
+        return Objects.equals(receiptKey, other.receiptKey) && providerReceiptId.equals(other.providerReceiptId)
                 && state == other.state && Objects.equals(fiscal, other.fiscal)
                 && Objects.equals(documentUrl, other.documentUrl) && Objects.equals(failure, other.failure);
     }

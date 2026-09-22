@@ -74,6 +74,17 @@ class ReceiptTest {
     }
 
     @Test
+    void nullReceiptKeyIsAllowedButBlankIsNot() {
+        // when
+        Receipt withoutKey = Receipt.pending(null, "doc-1");
+
+        // then
+        assertNull(withoutKey.receiptKey());
+        assertEquals("doc-1", withoutKey.providerReceiptId());
+        assertThrows(IllegalArgumentException.class, () -> Receipt.pending(" ", "doc-1"));
+    }
+
+    @Test
     void fiscalDataRequiresTimestampButNotNumbers() {
         // when / then
         assertThrows(IllegalArgumentException.class, () -> new FiscalData("A", "1", null));
