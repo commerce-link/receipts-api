@@ -61,6 +61,19 @@ public abstract class ReceiptProviderContractTest {
                 .build();
     }
 
+    /** A valid request the adapter's fixture accepts, without a buyer email. Only used when {@link ReceiptProvider#requiresBuyerEmail()}. */
+    protected ReceiptRequest sampleRequestWithoutEmail(String receiptKey) {
+        return ReceiptRequest.builder()
+                .receiptKey(receiptKey)
+                .orderId("tck-order-" + receiptKey.replace(':', '-'))
+                .saleDate(LocalDateTime.of(2026, 9, 22, 12, 0))
+                .line(ReceiptLine.goods("Kabel HDMI 2m", new BigDecimal("2"), Money.ofGrosze(2499), VatRate.VAT_23).sku("HDMI-2"))
+                .line(ReceiptLine.shipping("Dostawa kurier", Money.ofGrosze(1599), VatRate.VAT_23))
+                .payment(ReceiptPayment.of(PaymentForm.TRANSFER, Money.ofGrosze(6597)).label("Przelewy24"))
+                .buyer(ReceiptBuyer.NONE)
+                .build();
+    }
+
     /** Provider whose backend fails with a transport error after the request was sent. */
     protected Optional<ReceiptProvider> providerWithFailingTransport() {
         return Optional.empty();
@@ -68,6 +81,14 @@ public abstract class ReceiptProviderContractTest {
 
     /** Provider whose backend explicitly refuses every receipt. */
     protected Optional<ReceiptProvider> providerWithRejectingBackend() {
+        return Optional.empty();
+    }
+
+    /**
+     * Provider sharing {@link #provider()}'s backend whose next {@code issue} stores the receipt but then
+     * throws {@link ReceiptOutcomeUnknownException}, as if the response were lost on the way back.
+     */
+    protected Optional<ReceiptProvider> providerLosingNextResponse() {
         return Optional.empty();
     }
 
@@ -113,18 +134,23 @@ public abstract class ReceiptProviderContractTest {
 
     @Test
     void findForUnknownKeyIsEmptyAndCreatesNothing() {
+        // given
+        ReceiptProvider provider = provider();
+        provider.issue(sampleRequest(uniqueReceiptKey()));
+
         // when
-        Optional<Receipt> found = provider().find(uniqueReceiptKey());
+        Optional<Receipt> found = provider.find(uniqueReceiptKey());
 
         // then
         assertTrue(found.isEmpty());
-        createCalls().ifPresent(count -> assertEquals(0, count));
+        createCalls().ifPresent(count -> assertEquals(1, count));
     }
 
     @Test
     void findAfterIssueReturnsTheSameReceipt() {
         // given
         ReceiptProvider provider = provider();
+        provider.issue(sampleRequest(uniqueReceiptKey()));
         String key = uniqueReceiptKey();
         Receipt issued = provider.issue(sampleRequest(key));
 
@@ -135,7 +161,7 @@ public abstract class ReceiptProviderContractTest {
         assertTrue(found.isPresent());
         assertEquals(key, found.get().receiptKey());
         assertEquals(issued.providerReceiptId(), found.get().providerReceiptId());
-        createCalls().ifPresent(count -> assertEquals(1, count));
+        createCalls().ifPresent(count -> assertEquals(2, count));
     }
 
     @Test
@@ -153,7 +179,9 @@ public abstract class ReceiptProviderContractTest {
         // then
         assertEquals(ReceiptState.FISCALISED, fetched.state());
         assertNotNull(fetched.fiscal());
-        assertEquals(issued.receiptKey(), fetched.receiptKey());
+        assertEquals(issued.providerReceiptId(), fetched.providerReceiptId());
+        assertTrue(fetched.receiptKey() == null || fetched.receiptKey().equals(issued.receiptKey()),
+                "receiptKey must be null or the issued key, was " + fetched.receiptKey());
     }
 
     @Test
@@ -170,6 +198,9 @@ public abstract class ReceiptProviderContractTest {
         // then
         assertEquals(ReceiptState.FAILED, fetched.state());
         assertNotNull(fetched.failure());
+        assertEquals(issued.providerReceiptId(), fetched.providerReceiptId());
+        assertTrue(fetched.receiptKey() == null || fetched.receiptKey().equals(issued.receiptKey()),
+                "receiptKey must be null or the issued key, was " + fetched.receiptKey());
     }
 
     @Test
@@ -187,12 +218,42 @@ public abstract class ReceiptProviderContractTest {
     }
 
     @Test
+    void missingBuyerEmailIsRefusedBeforeAnyRemoteCall() {
+        // given
+        assumeTrue(provider().requiresBuyerEmail(), "Provider does not require a buyer email");
+
+        // when / then
+        assertThrows(ReceiptValidationException.class,
+                () -> provider().issue(sampleRequestWithoutEmail(uniqueReceiptKey())));
+        remoteCalls().ifPresent(count -> assertEquals(0, count));
+    }
+
+    @Test
     void transportFailureAfterSendSurfacesAsOutcomeUnknown() {
         // given
         ReceiptProvider provider = assumePresent(providerWithFailingTransport(), "a transport failure after send");
 
         // when / then
         assertThrows(ReceiptOutcomeUnknownException.class, () -> provider.issue(sampleRequest(uniqueReceiptKey())));
+    }
+
+    @Test
+    void outcomeUnknownRecoversThroughFindAndSameKeyRetry() {
+        // given
+        ReceiptProvider losing = assumePresent(providerLosingNextResponse(), "an outcome-unknown response loss");
+        ReceiptProvider provider = provider();
+        String key = uniqueReceiptKey();
+        ReceiptRequest request = sampleRequest(key);
+
+        // when / then
+        assertThrows(ReceiptOutcomeUnknownException.class, () -> losing.issue(request));
+
+        Optional<Receipt> found = provider.find(key);
+        assertTrue(found.isPresent());
+
+        Receipt retried = provider.issue(request);
+        assertEquals(found.get().providerReceiptId(), retried.providerReceiptId());
+        createCalls().ifPresent(count -> assertEquals(1, count));
     }
 
     @Test

@@ -26,19 +26,44 @@ class InMemoryReceiptProvider implements ReceiptProvider {
     enum Mode { SYNC, ASYNC, FAILING_TRANSPORT, REJECTING }
 
     private final Mode mode;
+    private final boolean requiresBuyerEmail;
     private final Map<String, Receipt> byProviderId = new ConcurrentHashMap<>();
     private final Map<String, String> providerIdByKey = new ConcurrentHashMap<>();
     private final AtomicInteger createCalls = new AtomicInteger();
     private final AtomicInteger remoteCalls = new AtomicInteger();
+    private volatile boolean loseNextResponse;
 
     InMemoryReceiptProvider(Mode mode) {
+        this(mode, false);
+    }
+
+    InMemoryReceiptProvider(Mode mode, boolean requiresBuyerEmail) {
         this.mode = mode;
+        this.requiresBuyerEmail = requiresBuyerEmail;
+    }
+
+    @Override
+    public boolean requiresBuyerEmail() {
+        return requiresBuyerEmail;
+    }
+
+    /**
+     * Arms the next {@code issue} to store the receipt on this same backend but report
+     * {@link ReceiptOutcomeUnknownException}, as if the response were lost on the way back. Returns this
+     * instance so callers can share it with {@link #provider()}.
+     */
+    InMemoryReceiptProvider loseNextResponse() {
+        this.loseNextResponse = true;
+        return this;
     }
 
     @Override
     public synchronized Receipt issue(ReceiptRequest request) {
         if (request == null) {
             throw new ReceiptValidationException("request is required");
+        }
+        if (requiresBuyerEmail && (request.buyer().email() == null || request.buyer().email().isBlank())) {
+            throw new ReceiptValidationException("buyer email is required");
         }
         remoteCalls.incrementAndGet();
         String existing = providerIdByKey.get(request.receiptKey());
@@ -53,7 +78,8 @@ class InMemoryReceiptProvider implements ReceiptProvider {
                 : Receipt.pending(request.receiptKey(), providerId);
         providerIdByKey.put(request.receiptKey(), providerId);
         byProviderId.put(providerId, receipt);
-        if (mode == Mode.FAILING_TRANSPORT) {
+        if (mode == Mode.FAILING_TRANSPORT || loseNextResponse) {
+            loseNextResponse = false;
             // The backend stored the receipt but the response was lost on the way back.
             throw new ReceiptOutcomeUnknownException("response lost",
                     new UncheckedIOException(new IOException("connection reset")));

@@ -10,7 +10,7 @@ import java.util.UUID;
 
 class InMemoryAsyncReceiptProviderContractTest extends ReceiptProviderContractTest {
 
-    private final InMemoryReceiptProvider provider = new InMemoryReceiptProvider(InMemoryReceiptProvider.Mode.ASYNC);
+    private final InMemoryReceiptProvider provider = new InMemoryReceiptProvider(InMemoryReceiptProvider.Mode.ASYNC, true);
 
     @Override
     protected ReceiptProvider provider() {
@@ -35,6 +35,11 @@ class InMemoryAsyncReceiptProviderContractTest extends ReceiptProviderContractTe
     @Override
     protected Optional<ReceiptProvider> providerWithRejectingBackend() {
         return Optional.of(new InMemoryReceiptProvider(InMemoryReceiptProvider.Mode.REJECTING));
+    }
+
+    @Override
+    protected Optional<ReceiptProvider> providerLosingNextResponse() {
+        return Optional.of(provider.loseNextResponse());
     }
 
     @Override
