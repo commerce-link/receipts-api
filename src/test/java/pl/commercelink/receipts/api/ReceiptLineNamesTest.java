@@ -16,7 +16,7 @@ class ReceiptLineNamesTest {
     @Test
     void replacesTypographicPunctuationWithAscii() {
         // when / then
-        assertEquals("Monitor \"Pro\" - 27'' ...", ReceiptLineNames.normalize("Monitor „Pro” – 27'' …", 80));
+        assertEquals("Monitor \"Pro\" - 27'' ...", ReceiptLineNames.normalize("Monitor „Pro” – 27’’ …", 80));
     }
 
     @Test
