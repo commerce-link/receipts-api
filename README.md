@@ -26,6 +26,13 @@ The receipt key identifies one issuing attempt and is sent to the provider as it
 Catch the subclasses before `ReceiptException`. Never retry an unknown outcome with a new key — that
 registers the sale twice.
 
+## Evolving enums
+
+`LineKind`, `PaymentForm`, `ReceiptMedium` and `VatRate` may gain constants in later releases. An adapter
+that does not map a constant it receives must refuse the request with `ReceiptValidationException` before
+any remote call, rather than guessing or silently dropping data. Future discount lines, for example, will
+be gated behind a capability so adapters that do not support them keep refusing safely.
+
 ## Status updates
 
 Providers that push status declare a `WebhookBinding` whose `WebhookExecutor<Receipt>` authenticates the
