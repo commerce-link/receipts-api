@@ -35,6 +35,16 @@ class ReceiptExceptionsTest {
     }
 
     @Test
+    void outcomeUnknownWithoutCauseCarriesMessage() {
+        // when
+        ReceiptOutcomeUnknownException unknown = new ReceiptOutcomeUnknownException("response lost");
+
+        // then
+        assertEquals("response lost", unknown.getMessage());
+        assertInstanceOf(ReceiptException.class, unknown);
+    }
+
+    @Test
     void validationIsAReceiptException() {
         // when / then
         assertInstanceOf(ReceiptException.class, new ReceiptValidationException("bad"));

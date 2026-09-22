@@ -7,6 +7,10 @@ package pl.commercelink.receipts.api;
  */
 public class ReceiptOutcomeUnknownException extends ReceiptException {
 
+    public ReceiptOutcomeUnknownException(String message) {
+        super(message);
+    }
+
     public ReceiptOutcomeUnknownException(String message, Throwable cause) {
         super(message, cause);
     }

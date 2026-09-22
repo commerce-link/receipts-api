@@ -16,7 +16,10 @@ public record Money(long grosze) implements Comparable<Money> {
         return new Money(grosze);
     }
 
-    /** Converts a PLN amount, rounding HALF_UP to whole grosze. */
+    /**
+     * Converts a PLN amount, rounding HALF_UP to whole grosze. Throws {@link ArithmeticException} when the
+     * amount does not fit in a {@code long} number of grosze.
+     */
     public static Money of(BigDecimal amount) {
         Objects.requireNonNull(amount, "amount");
         return new Money(amount.setScale(2, RoundingMode.HALF_UP).unscaledValue().longValueExact());

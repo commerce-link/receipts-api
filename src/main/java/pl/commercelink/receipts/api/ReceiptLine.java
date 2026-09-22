@@ -129,7 +129,10 @@ public final class ReceiptLine {
             return this;
         }
 
-        /** Overrides the computed total; {@link ReceiptRequest#validate()} still requires it to match. */
+        /**
+         * Line total after line-level adjustments; in v1 it must equal {@code unitGross × quantity}
+         * (validated by {@link ReceiptRequest}).
+         */
         public Builder totalGross(Money totalGross) {
             this.totalGross = totalGross;
             return this;
