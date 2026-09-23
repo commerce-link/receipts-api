@@ -1,9 +1,10 @@
 package pl.commercelink.receipts.api;
 
 /**
- * Base failure of a receipt operation. Thrown as such it means nothing was created at the provider
- * (configuration, authentication, a network error before the request was sent): retrying with the
- * SAME receipt key is safe. Subclasses narrow the meaning — catch them first.
+ * Base failure of a receipt operation. Thrown as such it means the call did nothing that a retry could
+ * duplicate (configuration, authentication, a network error before sending, a failed read), so retrying with
+ * the SAME receipt key is safe. The receipt may already exist at the provider from an earlier call.
+ * Subclasses narrow the meaning — catch them first.
  */
 public class ReceiptException extends RuntimeException {
 

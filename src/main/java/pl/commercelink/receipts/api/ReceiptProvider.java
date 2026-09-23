@@ -30,10 +30,11 @@ public interface ReceiptProvider {
     Receipt issue(ReceiptRequest request);
 
     /**
-     * Read-only probe after {@link ReceiptOutcomeUnknownException}: returns the receipt created under this key,
-     * if any, carrying {@link Receipt#receiptKey()}. MUST never create or fiscalise anything. Validates the key
-     * with {@link ReceiptKeys#requireValid}. Never returns empty because of a transport error — that is thrown
-     * as {@link ReceiptException} instead, since an empty result here means "no receipt under this key".
+     * Read-only probe: returns the receipt created under this key, if any, carrying {@link Receipt#receiptKey()}.
+     * MUST never create or fiscalise anything. Validates the key with {@link ReceiptKeys#requireValid}. Never
+     * returns empty because of a transport error — that is thrown as {@link ReceiptException} instead, since an
+     * empty result here means "no receipt under this key". It does not replace retrying {@link #issue} after
+     * {@link ReceiptOutcomeUnknownException}: a PENDING receipt may not have been sent for fiscalisation yet.
      */
     Optional<Receipt> find(String receiptKey);
 

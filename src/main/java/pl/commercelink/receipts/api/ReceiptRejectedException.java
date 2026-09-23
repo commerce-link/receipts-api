@@ -1,8 +1,10 @@
 package pl.commercelink.receipts.api;
 
 /**
- * The provider definitively refused the receipt (e.g. unknown point of sale, totals that do not add up);
- * nothing was created or fiscalised. Do not retry blindly: fix the cause and issue with a NEW receipt key.
+ * The provider definitively refused the receipt, or the attempt is certainly dead (e.g. unknown point of sale,
+ * totals that do not add up, the fiscal printer refused the sale): nothing was fiscalised under this key. A
+ * non-fiscal document may remain at the provider. Do not retry blindly: fix the cause and issue with a NEW
+ * receipt key.
  */
 public class ReceiptRejectedException extends ReceiptException {
 
