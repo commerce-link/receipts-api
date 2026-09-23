@@ -19,9 +19,9 @@ The receipt key identifies one issuing attempt and is sent to the provider as it
 | Exception | Meaning | Consumer action |
 |---|---|---|
 | `ReceiptValidationException` | invalid input, nothing sent | fix the data |
-| `ReceiptRejectedException` | provider refused, nothing created | fix the cause, issue with a NEW key |
-| `ReceiptOutcomeUnknownException` | may have been created | `find(key)`; if empty retry with the SAME key |
-| `ReceiptException` | failed before sending | retry with the SAME key |
+| `ReceiptRejectedException` | provider refused, or the attempt is certainly dead; nothing fiscalised (a non-fiscal document may remain) | fix the cause, issue with a NEW key |
+| `ReceiptOutcomeUnknownException` | may have been created, fiscalisation may have been ordered | retry `issue` with the SAME key until another result, whether or not `find` sees the receipt; `find` only to diagnose; bound retries with an alert |
+| `ReceiptException` | nothing a retry could duplicate (failed before sending, or a failed read) | retry with the SAME key |
 
 Catch the subclasses before `ReceiptException`. Never retry an unknown outcome with a new key — that
 registers the sale twice.
