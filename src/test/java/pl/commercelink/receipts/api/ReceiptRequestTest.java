@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -124,6 +125,54 @@ class ReceiptRequestTest {
                 .payment(ReceiptPayment.of(PaymentForm.CASH, Money.ofGrosze(1)))
                 .build());
         assertTrue(error.getMessage().contains("4014.99"));
+    }
+
+    @Test
+    void zeroValueLineIsRefused() {
+        // given: "Gratis" has unitGross 0, so it is a free line hiding in an otherwise valid receipt
+        ReceiptRequest.Builder builder = ReceiptRequest.builder()
+                .receiptKey("k").orderId("o").saleDate(SALE)
+                .line(ReceiptLine.goods("Zestaw", BigDecimal.ONE, Money.ofGrosze(100), VatRate.VAT_23))
+                .line(ReceiptLine.goods("Gratis", BigDecimal.ONE, Money.ofGrosze(0), VatRate.VAT_23))
+                .payment(ReceiptPayment.of(PaymentForm.CASH, Money.ofGrosze(100)));
+
+        // when / then
+        ReceiptValidationException error = assertThrows(ReceiptValidationException.class, builder::build);
+        assertTrue(error.getMessage().contains("Gratis"));
+    }
+
+    @Test
+    void lineRoundingToZeroIsRefused() {
+        // given: 1 grosz x 0.4 rounds HALF_UP to a 0 total, so the line would fiscalise nothing for free
+        ReceiptRequest.Builder builder = ReceiptRequest.builder()
+                .receiptKey("k").orderId("o").saleDate(SALE)
+                .line(ReceiptLine.goods("Zestaw", BigDecimal.ONE, Money.ofGrosze(100), VatRate.VAT_23))
+                .line(ReceiptLine.goods("Śruba", new BigDecimal("0.4"), Money.ofGrosze(1), VatRate.VAT_23))
+                .payment(ReceiptPayment.of(PaymentForm.CASH, Money.ofGrosze(100)));
+
+        // when / then
+        assertThrows(ReceiptValidationException.class, builder::build);
+    }
+
+    @Test
+    void nullLineOrPaymentIsAValidationError() {
+        // when / then
+        assertThrows(ReceiptValidationException.class, () -> valid().line((ReceiptLine) null).build());
+        assertThrows(ReceiptValidationException.class, () -> valid().payment((ReceiptPayment) null).build());
+    }
+
+    @Test
+    void validationMessagesShowAmountsAsDecimals() {
+        // given
+        ReceiptRequest.Builder builder = ReceiptRequest.builder()
+                .receiptKey("k").orderId("o").saleDate(SALE)
+                .line(ReceiptLine.goods("X", BigDecimal.ONE, Money.ofGrosze(-5), VatRate.VAT_23))
+                .payment(ReceiptPayment.of(PaymentForm.CASH, Money.ofGrosze(-5)));
+
+        // when / then
+        ReceiptValidationException error = assertThrows(ReceiptValidationException.class, builder::build);
+        assertFalse(error.getMessage().contains("Money["));
+        assertTrue(error.getMessage().contains("-0.05"));
     }
 
     private static ReceiptRequest singleLine(ReceiptLine.Builder line, Money paid) {

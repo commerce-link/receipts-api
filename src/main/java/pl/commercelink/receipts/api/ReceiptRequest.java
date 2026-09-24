@@ -43,6 +43,7 @@ public final class ReceiptRequest {
         return orderId;
     }
 
+    /** Local date-time of the sale in Europe/Warsaw (the time printed on the receipt), not UTC. */
     public LocalDateTime saleDate() {
         return saleDate;
     }
@@ -103,9 +104,13 @@ public final class ReceiptRequest {
         require(line.quantity() != null && line.quantity().signum() > 0, prefix + "quantity must be positive");
         require(line.quantity().stripTrailingZeros().scale() <= MAX_QUANTITY_SCALE,
                 prefix + "quantity allows at most " + MAX_QUANTITY_SCALE + " decimal places");
-        require(line.unitGross() != null && !line.unitGross().isNegative(), prefix + "unitGross must not be negative");
+        require(line.unitGross() != null, prefix + "unitGross is required");
+        if (line.unitGross().grosze() <= 0 || line.totalGross().grosze() <= 0) {
+            throw new ReceiptValidationException("Line \"" + line.name() + "\" must have a positive value, got "
+                    + line.totalGross().toBigDecimal() + " PLN");
+        }
         require(line.unitGross().times(line.quantity()).equals(line.totalGross()),
-                prefix + "totalGross " + line.totalGross() + " != unitGross x quantity");
+                prefix + "totalGross " + line.totalGross().toBigDecimal() + " != unitGross x quantity");
     }
 
     private static void require(boolean condition, String message) {
@@ -148,6 +153,9 @@ public final class ReceiptRequest {
         }
 
         public Builder line(ReceiptLine line) {
+            if (line == null) {
+                throw new ReceiptValidationException("line is required");
+            }
             this.lines.add(line);
             return this;
         }
@@ -157,6 +165,9 @@ public final class ReceiptRequest {
         }
 
         public Builder payment(ReceiptPayment payment) {
+            if (payment == null) {
+                throw new ReceiptValidationException("payment is required");
+            }
             this.payments.add(payment);
             return this;
         }
