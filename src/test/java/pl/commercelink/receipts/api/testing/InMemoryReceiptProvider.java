@@ -68,7 +68,11 @@ class InMemoryReceiptProvider implements ReceiptProvider {
         remoteCalls.incrementAndGet();
         String existing = providerIdByKey.get(request.receiptKey());
         if (existing != null) {
-            return byProviderId.get(existing);
+            Receipt existingReceipt = byProviderId.get(existing);
+            if (existingReceipt.state() == ReceiptState.FAILED) {
+                throw new ReceiptRejectedException("failed", "Receipt under this key already failed: " + existing);
+            }
+            return existingReceipt;
         }
         if (mode == Mode.REJECTING) {
             throw new ReceiptRejectedException("43", "Unknown point of sale");

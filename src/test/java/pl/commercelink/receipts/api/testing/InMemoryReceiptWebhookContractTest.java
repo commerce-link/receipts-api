@@ -53,12 +53,7 @@ class InMemoryReceiptWebhookContractTest extends ReceiptWebhookContractTest {
 
         @Override
         public ReceiptProvider create(Map<String, String> configuration) {
-            return new InMemoryReceiptProvider(InMemoryReceiptProvider.Mode.ASYNC) {
-                @Override
-                public boolean pushesStatusUpdates() {
-                    return true;
-                }
-            };
+            return new InMemoryReceiptProvider(InMemoryReceiptProvider.Mode.ASYNC);
         }
 
         @Override

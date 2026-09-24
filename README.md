@@ -7,7 +7,7 @@ online fiscal device registers it; providers accept the request and report the o
 ## Contract
 
 - **`ReceiptProviderDescriptor`** — service-loaded entry point (`META-INF/services/pl.commercelink.receipts.api.ReceiptProviderDescriptor`), extends `ProviderDescriptor<ReceiptProvider>`.
-- **`ReceiptProvider`** — `issue(request)`, `find(receiptKey)` (read-only probe), `fetch(providerReceiptId)`, capability defaults `supportedMedia()`, `maxLineNameLength()`, `requiresBuyerEmail()`, `pushesStatusUpdates()`.
+- **`ReceiptProvider`** — `issue(request)`, `find(receiptKey)` (read-only probe), `fetch(providerReceiptId)`, capability defaults `supportedMedia()`, `maxLineNameLength()`, `requiresBuyerEmail()`.
 - **`ReceiptRequest`** — built with `ReceiptRequest.builder()`; `build()` validates (key format, lines, totals = payments to the grosz).
 - **`Receipt`** — `PENDING → FISCALISED | FAILED`; `FiscalData` (unique cash register number, receipt number, time), `documentUrl` (e-receipt link, may arrive later), `ReceiptFailure`.
 - **`Money`** (grosze, PLN), **`VatRate`** (adapters map to PTU letters), **`PaymentForm`**, **`LineKind`**, **`ReceiptLineNames.normalize`** (Windows-1250, device length).
@@ -19,7 +19,7 @@ The receipt key identifies one issuing attempt and is sent to the provider as it
 | Exception | Meaning | Consumer action |
 |---|---|---|
 | `ReceiptValidationException` | invalid input, nothing sent | fix the data |
-| `ReceiptRejectedException` | provider refused, or the attempt is certainly dead; nothing fiscalised (a non-fiscal document may remain) | fix the cause, issue with a NEW key |
+| `ReceiptRejectedException` | provider refused, the attempt is certainly dead, or a receipt already exists under this key and is `FAILED`; nothing fiscalised (a non-fiscal document may remain) | fix the cause, issue with a NEW key |
 | `ReceiptOutcomeUnknownException` | may have been created, fiscalisation may have been ordered | retry `issue` with the SAME key until another result, whether or not `find` sees the receipt; `find` only to diagnose; bound retries with an alert |
 | `ReceiptException` | nothing a retry could duplicate (failed before sending, or a failed read) | retry with the SAME key |
 
@@ -51,4 +51,4 @@ class MyProviderContractTest extends ReceiptProviderContractTest {
 }
 ```
 
-`ReceiptWebhookContractTest` covers providers with `pushesStatusUpdates()`.
+`ReceiptWebhookContractTest` covers providers that declare a webhook binding in their descriptor.

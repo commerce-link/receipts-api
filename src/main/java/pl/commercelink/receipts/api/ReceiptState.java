@@ -13,9 +13,5 @@ public enum ReceiptState {
     /** Registered in the fiscal memory. The e-receipt link may still be missing. */
     FISCALISED,
     /** Definitively not fiscalised. */
-    FAILED;
-
-    public boolean isTerminal() {
-        return this != PENDING;
-    }
+    FAILED
 }

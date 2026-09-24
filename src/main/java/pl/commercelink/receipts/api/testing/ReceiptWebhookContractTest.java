@@ -25,9 +25,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * Rules for providers that push status updates: exactly one webhook binding exists iff the provider says it
- * pushes, an authentic call yields the receipt's state under its receipt key, and an unauthenticated or
- * tampered call yields no result and a {@code REJECTED} response.
+ * Rules for providers that push status updates through a webhook binding: an authentic call yields the
+ * receipt's state under its receipt key, and an unauthenticated or tampered call yields no result and a
+ * {@code REJECTED} response.
  */
 public abstract class ReceiptWebhookContractTest {
 
@@ -65,18 +65,6 @@ public abstract class ReceiptWebhookContractTest {
     protected Receipt sampleFailedReceipt() {
         return Receipt.failed("tck-order-2:R1", "tck-provider-2",
                 new ReceiptFailure("16", "Printer rejected the line name"));
-    }
-
-    @Test
-    void pushesStatusUpdatesMatchesWebhookBinding() {
-        // when
-        boolean pushes = descriptor().create(providerConfig()).pushesStatusUpdates();
-        List<WebhookBinding<?>> webhooks = webhookBindings();
-
-        // then
-        assertEquals(pushes, !webhooks.isEmpty());
-        assumeTrue(pushes, "Provider does not push status updates");
-        assertEquals(1, webhooks.size());
     }
 
     @Test

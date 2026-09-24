@@ -266,6 +266,19 @@ public abstract class ReceiptProviderContractTest {
     }
 
     @Test
+    void reissueOfFailedReceiptIsRejected() {
+        // given
+        ReceiptProvider provider = provider();
+        ReceiptRequest request = sampleRequest(uniqueReceiptKey());
+        Receipt issued = provider.issue(request);
+        assumeTrue(issued.state() == ReceiptState.PENDING, "Provider fiscalises synchronously — no later failure possible");
+        settle(issued, ReceiptState.FAILED);
+
+        // when / then
+        assertThrows(ReceiptRejectedException.class, () -> provider.issue(request));
+    }
+
+    @Test
     void capabilitiesAreUsable() {
         // given
         ReceiptProvider provider = provider();

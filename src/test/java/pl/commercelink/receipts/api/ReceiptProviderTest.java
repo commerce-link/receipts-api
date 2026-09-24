@@ -33,6 +33,5 @@ class ReceiptProviderTest {
         assertEquals(Set.of(ReceiptMedium.ELECTRONIC), minimal.supportedMedia());
         assertEquals(40, minimal.maxLineNameLength());
         assertFalse(minimal.requiresBuyerEmail());
-        assertFalse(minimal.pushesStatusUpdates());
     }
 }

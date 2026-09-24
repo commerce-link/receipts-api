@@ -26,6 +26,10 @@ public interface ReceiptProvider {
      * Idempotent by {@code request.receiptKey()}: calling again with the same key never creates a second
      * receipt and returns the existing one. Returns {@link ReceiptState#PENDING} or {@link ReceiptState#FISCALISED},
      * both carrying {@link Receipt#receiptKey()}.
+     *
+     * <p>If a receipt under this key already exists and is {@link ReceiptState#FAILED}, throws
+     * {@link ReceiptRejectedException}: a failed receipt is never retried under its key; the consumer issues
+     * a new key.
      */
     Receipt issue(ReceiptRequest request);
 
@@ -58,14 +62,6 @@ public interface ReceiptProvider {
 
     /** Whether {@link ReceiptBuyer#email()} is mandatory for an e-receipt. */
     default boolean requiresBuyerEmail() {
-        return false;
-    }
-
-    /**
-     * Whether the descriptor declares a status webhook binding. Consumers still poll PENDING receipts:
-     * some providers do not retry failed webhooks.
-     */
-    default boolean pushesStatusUpdates() {
         return false;
     }
 }

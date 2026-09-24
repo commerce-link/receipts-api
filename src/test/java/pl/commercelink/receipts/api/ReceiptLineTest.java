@@ -35,17 +35,6 @@ class ReceiptLineTest {
     }
 
     @Test
-    void explicitTotalOverridesDefault() {
-        // when
-        ReceiptLine line = ReceiptLine.service("Montaż", BigDecimal.ONE, Money.ofGrosze(5000), VatRate.VAT_8)
-                .totalGross(Money.ofGrosze(4999)).build();
-
-        // then
-        assertEquals(LineKind.SERVICE, line.kind());
-        assertEquals(Money.ofGrosze(4999), line.totalGross());
-    }
-
-    @Test
     void weightQuantityRoundsTotalHalfUp() {
         // when
         ReceiptLine line = ReceiptLine.goods("Orzechy", new BigDecimal("0.333"), Money.ofGrosze(5000), VatRate.VAT_5).build();

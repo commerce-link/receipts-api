@@ -8,7 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ReceiptTest {
 
@@ -25,7 +24,6 @@ class ReceiptTest {
         assertNull(receipt.fiscal());
         assertNull(receipt.failure());
         assertNull(receipt.documentUrl());
-        assertFalse(receipt.state().isTerminal());
     }
 
     @Test
@@ -39,7 +37,6 @@ class ReceiptTest {
         assertEquals(FISCAL, withLink.fiscal());
         assertEquals("https://hub.example/view/1", withLink.documentUrl());
         assertNull(withoutLink.documentUrl());
-        assertTrue(withLink.state().isTerminal());
     }
 
     @Test
@@ -57,7 +54,6 @@ class ReceiptTest {
         assertEquals(ReceiptState.FAILED, receipt.state());
         assertEquals("16", receipt.failure().code());
         assertNull(receipt.fiscal());
-        assertTrue(receipt.state().isTerminal());
     }
 
     @Test

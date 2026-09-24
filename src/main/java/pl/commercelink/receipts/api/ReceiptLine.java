@@ -19,8 +19,8 @@ public final class ReceiptLine {
         this.name = builder.name;
         this.quantity = builder.quantity;
         this.unitGross = builder.unitGross;
-        this.totalGross = builder.totalGross != null ? builder.totalGross
-                : builder.unitGross != null && builder.quantity != null ? builder.unitGross.times(builder.quantity) : null;
+        this.totalGross = builder.unitGross != null && builder.quantity != null
+                ? builder.unitGross.times(builder.quantity) : null;
         this.vatRate = builder.vatRate;
         this.kind = builder.kind;
         this.sku = builder.sku;
@@ -51,7 +51,7 @@ public final class ReceiptLine {
         return unitGross;
     }
 
-    /** Defaults to {@code unitGross × quantity} rounded HALF_UP. */
+    /** Always {@code unitGross × quantity} rounded HALF_UP. */
     public Money totalGross() {
         return totalGross;
     }
@@ -107,7 +107,6 @@ public final class ReceiptLine {
         private final BigDecimal quantity;
         private final Money unitGross;
         private final VatRate vatRate;
-        private Money totalGross;
         private String sku;
         private String ean;
 
@@ -126,15 +125,6 @@ public final class ReceiptLine {
 
         public Builder ean(String ean) {
             this.ean = ean;
-            return this;
-        }
-
-        /**
-         * Line total after line-level adjustments; in v1 it must equal {@code unitGross × quantity}
-         * (validated by {@link ReceiptRequest}).
-         */
-        public Builder totalGross(Money totalGross) {
-            this.totalGross = totalGross;
             return this;
         }
 

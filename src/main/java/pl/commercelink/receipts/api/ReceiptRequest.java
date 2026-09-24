@@ -109,8 +109,6 @@ public final class ReceiptRequest {
             throw new ReceiptValidationException("Line \"" + line.name() + "\" must have a positive value, got "
                     + line.totalGross().toBigDecimal() + " PLN");
         }
-        require(line.unitGross().times(line.quantity()).equals(line.totalGross()),
-                prefix + "totalGross " + line.totalGross().toBigDecimal() + " != unitGross x quantity");
     }
 
     private static void require(boolean condition, String message) {

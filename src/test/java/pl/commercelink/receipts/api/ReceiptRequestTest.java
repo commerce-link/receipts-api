@@ -100,14 +100,6 @@ class ReceiptRequestTest {
     }
 
     @Test
-    void rejectsTotalThatDoesNotMatchUnitTimesQuantity() {
-        // when / then
-        assertThrows(ReceiptValidationException.class, () -> singleLine(
-                ReceiptLine.goods("A", BigDecimal.ONE, Money.ofGrosze(100), VatRate.VAT_23).totalGross(Money.ofGrosze(99)),
-                Money.ofGrosze(99)));
-    }
-
-    @Test
     void rejectsMissingOrNonPositivePayment() {
         // when / then
         assertThrows(ReceiptValidationException.class, () -> ReceiptRequest.builder()
