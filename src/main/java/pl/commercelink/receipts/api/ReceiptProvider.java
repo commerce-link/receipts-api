@@ -7,6 +7,11 @@ import java.util.Set;
  * Issues fiscal e-receipts through one provider, bound to one store's configuration. Implementations
  * must be thread-safe.
  *
+ * <p><b>Local capabilities.</b> The default methods ({@link #supportedMedia}, {@link #maxLineNameLength},
+ * {@link #requiresBuyerEmail}) and their overrides must answer locally from configuration and never call the
+ * provider's API, so consumers may call them outside their call limiter; only {@link #issue}, {@link #find} and
+ * {@link #fetch} may do network I/O.
+ *
  * <p>Failure contract of {@link #issue}: {@link ReceiptValidationException} before any remote call;
  * {@link ReceiptRejectedException} when the provider definitively refused; {@link ReceiptOutcomeUnknownException}
  * for every other failure after the request may have been sent; plain {@link ReceiptException} for failures
