@@ -105,10 +105,8 @@ public final class ReceiptRequest {
         require(line.quantity().stripTrailingZeros().scale() <= MAX_QUANTITY_SCALE,
                 prefix + "quantity allows at most " + MAX_QUANTITY_SCALE + " decimal places");
         require(line.unitGross() != null, prefix + "unitGross is required");
-        if (line.unitGross().grosze() <= 0 || line.totalGross().grosze() <= 0) {
-            throw new ReceiptValidationException("Line \"" + line.name() + "\" must have a positive value, got "
-                    + line.totalGross().toBigDecimal() + " PLN");
-        }
+        require(line.unitGross().grosze() > 0 && line.totalGross().grosze() > 0, prefix + "value must be positive (\""
+                + line.name() + "\" is worth " + line.totalGross().toBigDecimal() + " PLN)");
     }
 
     private static void require(boolean condition, String message) {

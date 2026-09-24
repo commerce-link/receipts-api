@@ -130,7 +130,8 @@ class ReceiptRequestTest {
 
         // when / then
         ReceiptValidationException error = assertThrows(ReceiptValidationException.class, builder::build);
-        assertTrue(error.getMessage().contains("Gratis"));
+        assertTrue(error.getMessage().startsWith("line 1: "), error.getMessage());
+        assertTrue(error.getMessage().contains("Gratis"), error.getMessage());
     }
 
     @Test
@@ -142,8 +143,11 @@ class ReceiptRequestTest {
                 .line(ReceiptLine.goods("Śruba", new BigDecimal("0.4"), Money.ofGrosze(1), VatRate.VAT_23))
                 .payment(ReceiptPayment.of(PaymentForm.CASH, Money.ofGrosze(100)));
 
-        // when / then
-        assertThrows(ReceiptValidationException.class, builder::build);
+        // when
+        ReceiptValidationException error = assertThrows(ReceiptValidationException.class, builder::build);
+
+        // then
+        assertTrue(error.getMessage().startsWith("line 1: "), error.getMessage());
     }
 
     @Test

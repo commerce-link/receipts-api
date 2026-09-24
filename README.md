@@ -8,7 +8,7 @@ online fiscal device registers it; providers accept the request and report the o
 
 - **`ReceiptProviderDescriptor`** — service-loaded entry point (`META-INF/services/pl.commercelink.receipts.api.ReceiptProviderDescriptor`), extends `ProviderDescriptor<ReceiptProvider>`.
 - **`ReceiptProvider`** — `issue(request)`, `find(receiptKey)` (read-only probe), `fetch(providerReceiptId)`, capability defaults `supportedMedia()`, `maxLineNameLength()`, `requiresBuyerEmail()`.
-- **`ReceiptRequest`** — built with `ReceiptRequest.builder()`; `build()` validates (key format, lines, totals = payments to the grosz).
+- **`ReceiptRequest`** — built with `ReceiptRequest.builder()`; `build()` validates (key format, lines, totals = payments to the grosz); every line must be worth more than 0 PLN (unit price and line total after rounding), since a free line cannot be fiscalised.
 - **`Receipt`** — `PENDING → FISCALISED | FAILED`; `FiscalData` (unique cash register number, receipt number, time), `documentUrl` (e-receipt link, may arrive later), `ReceiptFailure`.
 - **`Money`** (grosze, PLN), **`VatRate`** (adapters map to PTU letters), **`PaymentForm`**, **`LineKind`**, **`ReceiptLineNames.normalize`** (Windows-1250, device length).
 
