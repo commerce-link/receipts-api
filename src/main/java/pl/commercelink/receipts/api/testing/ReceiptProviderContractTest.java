@@ -61,6 +61,18 @@ public abstract class ReceiptProviderContractTest {
                 .build();
     }
 
+    /** {@link #sampleRequest} without payments: the payment form is not known. Override together with it. */
+    protected ReceiptRequest sampleRequestWithoutPayments(String receiptKey) {
+        return ReceiptRequest.builder()
+                .receiptKey(receiptKey)
+                .orderId("tck-order-" + receiptKey.replace(':', '-'))
+                .saleDate(LocalDateTime.of(2026, 9, 22, 12, 0))
+                .line(ReceiptLine.goods("Kabel HDMI 2m", new BigDecimal("2"), Money.ofGrosze(2499), VatRate.VAT_23).sku("HDMI-2"))
+                .line(ReceiptLine.shipping("Dostawa kurier", Money.ofGrosze(1599), VatRate.VAT_23))
+                .buyer(ReceiptBuyer.builder().email("tck@example.com").build())
+                .build();
+    }
+
     /** A valid request the adapter's fixture accepts, without a buyer email. Only used when {@link ReceiptProvider#requiresBuyerEmail()}. */
     protected ReceiptRequest sampleRequestWithoutEmail(String receiptKey) {
         return ReceiptRequest.builder()
@@ -115,6 +127,20 @@ public abstract class ReceiptProviderContractTest {
         assertTrue(receipt.state() == ReceiptState.PENDING || receipt.state() == ReceiptState.FISCALISED,
                 "issue must return PENDING or FISCALISED, got " + receipt.state());
         assertFalse(receipt.providerReceiptId().isBlank());
+    }
+
+    @Test
+    void issueWithoutPaymentsIsAccepted() {
+        // given: nothing paid yet and no method chosen — a receipt does not need a payment form
+        String key = uniqueReceiptKey();
+
+        // when
+        Receipt receipt = provider().issue(sampleRequestWithoutPayments(key));
+
+        // then
+        assertEquals(key, receipt.receiptKey());
+        assertTrue(receipt.state() == ReceiptState.PENDING || receipt.state() == ReceiptState.FISCALISED,
+                "issue must return PENDING or FISCALISED, got " + receipt.state());
     }
 
     @Test

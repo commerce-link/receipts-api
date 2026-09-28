@@ -100,23 +100,41 @@ class ReceiptRequestTest {
     }
 
     @Test
-    void rejectsMissingOrNonPositivePayment() {
-        // when / then
-        assertThrows(ReceiptValidationException.class, () -> ReceiptRequest.builder()
+    void acceptsAReceiptWithoutPayments() {
+        // when
+        ReceiptRequest request = ReceiptRequest.builder()
                 .receiptKey("k").orderId("o").saleDate(SALE)
                 .line(ReceiptLine.goods("A", BigDecimal.ONE, Money.ofGrosze(100), VatRate.VAT_23))
-                .build());
+                .build();
+
+        // then
+        assertTrue(request.payments().isEmpty());
+    }
+
+    @Test
+    void rejectsNonPositivePayment() {
+        // when / then
         assertThrows(ReceiptValidationException.class, () -> singleLine(
                 ReceiptLine.goods("A", BigDecimal.ONE, Money.ofGrosze(0), VatRate.VAT_23), Money.ofGrosze(0)));
     }
 
     @Test
-    void rejectsPaymentsThatDoNotCoverLines() {
+    void rejectsPaymentsExceedingTheLines() {
         // when / then
         ReceiptValidationException error = assertThrows(ReceiptValidationException.class, () -> valid()
                 .payment(ReceiptPayment.of(PaymentForm.CASH, Money.ofGrosze(1)))
                 .build());
         assertTrue(error.getMessage().contains("4014.99"));
+    }
+
+    @Test
+    void acceptsAPartPayment() {
+        // when
+        ReceiptRequest request = singleLine(
+                ReceiptLine.goods("A", BigDecimal.ONE, Money.ofGrosze(100), VatRate.VAT_23), Money.ofGrosze(40));
+
+        // then
+        assertEquals(Money.ofGrosze(40), request.payments().get(0).amount());
     }
 
     @Test
