@@ -56,6 +56,11 @@ public final class ReceiptRequest {
         return lines;
     }
 
+    /**
+     * What the buyer has actually paid, by form: equal to {@link #totalGross()} for a paid sale, less for a partly paid
+     * one, empty when nothing is paid yet. A fiscal receipt does not require a payment form, so for an empty list an
+     * adapter sends no payment data at all instead of inventing a form or marking the receipt paid.
+     */
     public List<ReceiptPayment> payments() {
         return payments;
     }
@@ -84,7 +89,9 @@ public final class ReceiptRequest {
         for (int i = 0; i < lines.size(); i++) {
             validateLine(i, lines.get(i));
         }
-        require(!payments.isEmpty(), "at least one payment is required");
+        if (payments.isEmpty()) {
+            return;   // nothing paid yet: the receipt is issued without payment data
+        }
         Money paid = Money.ZERO;
         for (int i = 0; i < payments.size(); i++) {
             ReceiptPayment payment = payments.get(i);
@@ -93,7 +100,8 @@ public final class ReceiptRequest {
             paid = paid.plus(payment.amount());
         }
         Money total = totalGross();
-        require(total.equals(paid), "lines total " + total.toBigDecimal() + " != payments total " + paid.toBigDecimal());
+        require(paid.grosze() <= total.grosze(),
+                "payments total " + paid.toBigDecimal() + " > lines total " + total.toBigDecimal());
     }
 
     private static void validateLine(int index, ReceiptLine line) {
