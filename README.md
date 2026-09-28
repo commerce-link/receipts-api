@@ -1,0 +1,54 @@
+# Receipts API
+
+Contract for issuing Polish **fiscal e-receipts** (e-paragony) through external providers
+(Fakturownia/paragony.pl, eparagony.pl, fiscal device bridges). A receipt becomes fiscal only when an
+online fiscal device registers it; providers accept the request and report the outcome later.
+
+## Contract
+
+- **`ReceiptProviderDescriptor`** — service-loaded entry point (`META-INF/services/pl.commercelink.receipts.api.ReceiptProviderDescriptor`), extends `ProviderDescriptor<ReceiptProvider>`.
+- **`ReceiptProvider`** — `issue(request)`, `find(receiptKey)` (read-only probe), `fetch(providerReceiptId)`, capability defaults `supportedMedia()`, `maxLineNameLength()`, `requiresBuyerEmail()`.
+- **`ReceiptRequest`** — built with `ReceiptRequest.builder()`; `build()` validates (key format, lines, totals = payments to the grosz); every line must be worth more than 0 PLN (unit price and line total after rounding), since a free line cannot be fiscalised.
+- **`Receipt`** — `PENDING → FISCALISED | FAILED`; `FiscalData` (unique cash register number, receipt number, time), `documentUrl` (e-receipt link, may arrive later), `ReceiptFailure`.
+- **`Money`** (grosze, PLN), **`VatRate`** (adapters map to PTU letters), **`PaymentForm`**, **`LineKind`**, **`ReceiptLineNames.normalize`** (Windows-1250, device length).
+
+## Idempotency and failures
+
+The receipt key identifies one issuing attempt and is sent to the provider as its idempotency key.
+
+| Exception | Meaning | Consumer action |
+|---|---|---|
+| `ReceiptValidationException` | invalid input, nothing sent | fix the data |
+| `ReceiptRejectedException` | provider refused, the attempt is certainly dead, or a receipt already exists under this key and is `FAILED`; nothing fiscalised (a non-fiscal document may remain) | fix the cause, issue with a NEW key |
+| `ReceiptOutcomeUnknownException` | may have been created, fiscalisation may have been ordered | retry `issue` with the SAME key until another result, whether or not `find` sees the receipt; `find` only to diagnose; bound retries with an alert |
+| `ReceiptException` | nothing a retry could duplicate (failed before sending, or a failed read) | retry with the SAME key |
+
+Catch the subclasses before `ReceiptException`. Never retry an unknown outcome with a new key — that
+registers the sale twice.
+
+## Evolving enums
+
+`LineKind`, `PaymentForm`, `ReceiptMedium` and `VatRate` may gain constants in later releases. An adapter
+that does not map a constant it receives must refuse the request with `ReceiptValidationException` before
+any remote call, rather than guessing or silently dropping data. Future discount lines, for example, will
+be gated behind a capability so adapters that do not support them keep refusing safely.
+
+## Status updates
+
+Providers that push status declare a `WebhookBinding` whose `WebhookExecutor<Receipt>` authenticates the
+call and returns the receipt, or `WebhookStatusResponse("REJECTED")`. Consumers still poll `PENDING`
+receipts with `fetch`, because some providers do not retry webhooks.
+
+## Contract tests
+
+Adapters extend the kits shipped in `pl.commercelink.receipts.api.testing` (JUnit 5 is `provided`):
+
+```java
+class MyProviderContractTest extends ReceiptProviderContractTest {
+    protected ReceiptProvider provider() { ... }                       // bound to a fake backend
+    protected String uniqueReceiptKey() { return UUID.randomUUID() + ":R1"; }
+    protected void settle(Receipt pending, ReceiptState target) { ... } // flip state on the fake backend
+}
+```
+
+`ReceiptWebhookContractTest` covers providers that declare a webhook binding in their descriptor.
